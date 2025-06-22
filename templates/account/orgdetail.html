@@ -1,0 +1,21 @@
+{% extends "_base.html" %}
+
+{% block content %}
+
+<form method="post">
+    {{form.as_p}}
+    {%csrf_token%}
+    <button type="submit">Update it</button>
+</form>
+
+{%if org.status != 'approved'%}
+<a href="{%url 'account:approvedStatus' org.id%}">
+    <button type="submit">
+        Approve the status.
+    </button>
+</a>
+{%else%}
+<h4>This application is already been approved by {{user}}</h4>
+{%endif%}
+
+{% endblock content %}

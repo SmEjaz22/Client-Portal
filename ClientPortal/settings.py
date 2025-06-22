@@ -31,9 +31,15 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
+# LOGIN_REDIRECT_URL = 'account:dashboard'
+LOGOUT_REDIRECT_URL = 'account:login' # Good [Morning, Evening, Night] Thank you for using, Tc
+LOGIN_URL = 'account:login'
+
 # Application definition
 
 INSTALLED_APPS = [
+    'account',
+    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -52,12 +58,21 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
+#authentication.py
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend', # DJango uses this by default.
+    'account.authentication.EmailOrUsernameAuthBackend', # Django will now also use this.
+]
+
+
+
 ROOT_URLCONF = 'ClientPortal.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR/'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

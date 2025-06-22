@@ -1,0 +1,36 @@
+{% extends "_base.html" %}
+
+{% block content %}
+
+<h1>
+    Welcome, {{admin_name}}
+</h1>
+<div>
+    <h2>
+        Total organization{{ total_orgs|pluralize }} : {{total_orgs}}
+    </h2>
+    <ul>
+        {% for total_org in org %}
+        <li>
+            <a href="{%url 'account:orgdetail' total_org.id %}">
+                {{total_org.adminEmail}} - {{total_org.location}} - {{total_org.url}}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <h2>
+        Total approved organization{{ total_approved_org|pluralize }} : {{total_approved_org}}
+    </h2>
+    {%if total_approved_org != 0 %}
+    <ul>
+        {% for app_org in approved_org %}
+        <li>
+            {{app_org.adminEmail}} - {{app_org.location}} - {{app_org.url}}
+        </li>
+        {% endfor %}
+    </ul>
+    {%endif%}
+</div>
+
+{% endblock content %}
