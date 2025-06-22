@@ -40,3 +40,15 @@ class Organization(models.Model):
     
     def __str__(self):
         return self.name
+
+
+class Clients(models.Model):
+    email=models.EmailField()
+    firstName=models.CharField(max_length=30, blank=True, null=True)
+    lastName=models.CharField(max_length=30, blank=True, null=True)
+    ROLE_CHOICES=[
+        ('teacher','Teacher'),
+        ('student','Student')
+    ]
+    role=models.CharField(choices=ROLE_CHOICES, blank=True, null=True)
+    user=models.ForeignKey(Organization, on_delete=models.CASCADE)

@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 
 from .models import Organization 
-from .forms import RegistrationForm, LoginForm, AdminSetupForm
+from .forms import OrganizationRegistrationForm, LoginForm, AdminSetupForm
 
 def loginView(request):
     if User.objects.count() < 2:
@@ -62,11 +62,11 @@ def loginView(request):
     return render(request, 'account/login.html', {'form':form})
 
 
-def registrationView(request):
+def orgregistrationView(request):
     if request.method!='POST':
-        form=RegistrationForm()
+        form=OrganizationRegistrationForm()
     else:
-        form=RegistrationForm(request.POST)
+        form=OrganizationRegistrationForm(request.POST)
         if form.is_valid():
             request.session['pending_status_email'] = form.cleaned_data['adminEmail']
             org=form.save()
@@ -90,8 +90,19 @@ def statusView(request, org_id):
 def userDashboard(request, org_id):
     user=request.user.username
     org=Organization.objects.get(id=org_id)
+    if '@' in org.adminEmail:
+        user_fullname=org.adminEmail.split('@',1)[0]
+    else:
+        user_fullname=org.adminEmail
+    if '.' in user_fullname:
+        user_firstname=user_fullname.split('.',1)[0]
+        user_lastname=user_fullname.split('.',1)[1]
+        user_name=user_firstname+' '+user_lastname
+    else:
+        user_name=user_fullname
+        
     if user==org.adminEmail:
-        return render(request, 'account/userDashboard.html', {'org':org})    
+        return render(request, 'account/userDashboard.html', {'org':org, 'user_name':user_name})    
     else:
         return HttpResponse('<h1>You are only allowed to access your own dashboard. If you think this is a mistake. Contact support!</h1>')
     
@@ -104,9 +115,9 @@ def orgDetail(request, org_id):
         except Organization.DoesNotExist:
             return HttpResponse('Organization does not exist.')
         if request.method!='POST':
-            form=RegistrationForm(instance=org)
+            form=OrganizationRegistrationForm(instance=org)
         else:
-            form=RegistrationForm(request.POST, instance=org)
+            form=OrganizationRegistrationForm(request.POST, instance=org)
             if form.is_valid():
                 form.save()
                 return redirect('account:admin', request.user.username)
@@ -116,7 +127,7 @@ def orgDetail(request, org_id):
 
 
 @login_required
-def approvedStatus(request, org_id):
+def approveStatus(request, org_id):
     if request.user.is_superuser:
         try:
             org=Organization.objects.get(id=org_id)
@@ -131,6 +142,23 @@ def approvedStatus(request, org_id):
     else:
         return HttpResponse('Only admins are allowed.')
     
+
+@login_required
+def rejectStatus(request, org_id):
+    if request.user.is_superuser:
+        try:
+            org=Organization.objects.get(id=org_id)
+        except Organization.DoesNotExist:
+            return HttpResponse('Organization does not exist.')
+        if org.status!='rejected':
+            org.status='rejected'
+            org.save()
+            return redirect('account:admin', request.user.username)
+        # Handle non-POST or already approved
+        return HttpResponse(f'Your organization request is {org.status}.')
+    else:
+        return HttpResponse('Only admins are allowed.')
+
     
 @login_required
 def admin(request, admin_name):

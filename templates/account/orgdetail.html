@@ -8,14 +8,40 @@
     <button type="submit">Update it</button>
 </form>
 
-{%if org.status != 'approved'%}
-<a href="{%url 'account:approvedStatus' org.id%}">
+{% if org.status == 'rejected' %}
+<form method="POST" action="{% url 'account:approveStatus' org.id %}">
+    {% csrf_token %}
     <button type="submit">
-        Approve the status.
+        Approve the application.
     </button>
-</a>
-{%else%}
+</form>
+<h4>This application is already been rejected by {{user}}</h4>
+
+{% elif org.status == 'approved' %}
+<form method="POST" action="{% url 'account:rejectStatus' org.id %}">
+    {% csrf_token %}
+    <button type="submit">
+        Reject the application.
+    </button>
+</form>
 <h4>This application is already been approved by {{user}}</h4>
+
+{%else%}
+<form method="POST" action="{% url 'account:approveStatus' org.id %}">
+    {% csrf_token %}
+    <button type="submit">
+        Approve the application.
+    </button>
+</form>
+
+<form method="POST" action="{% url 'account:rejectStatus' org.id %}">
+    {% csrf_token %}
+    <button type="submit">
+        Approve the application.
+    </button>
+</form>
+
+<h4>This application is on {{org.status}}</h4>
 {%endif%}
 
 {% endblock content %}

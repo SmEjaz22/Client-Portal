@@ -9,7 +9,7 @@ class LoginForm(forms.Form):
     adminEmail=forms.CharField(max_length=30)
     password=forms.CharField(widget=forms.PasswordInput)
     
-class RegistrationForm(forms.ModelForm):
+class OrganizationRegistrationForm(forms.ModelForm):
     class Meta:
         model= Organization
         fields='__all__'
@@ -58,3 +58,7 @@ class AdminSetupForm(forms.Form):
             raise forms.ValidationError("Passwords do not match.")
         
         return retypePasswprd
+    
+    
+
+    
