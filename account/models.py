@@ -51,4 +51,4 @@ class Clients(models.Model):
         ('student','Student')
     ]
     role=models.CharField(choices=ROLE_CHOICES, blank=True, null=True)
-    user=models.ForeignKey(Organization, on_delete=models.CASCADE)
+    organization=models.ForeignKey(Organization, on_delete=models.CASCADE)

@@ -39,6 +39,7 @@ LOGIN_URL = 'account:login'
 
 INSTALLED_APPS = [
     'account',
+    'portal',
     
     'django.contrib.admin',
     'django.contrib.auth',
@@ -64,6 +65,15 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend', # DJango uses this by default.
     'account.authentication.EmailOrUsernameAuthBackend', # Django will now also use this.
 ]
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# for real email sent.
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'your@email.com'
+# EMAIL_HOST_PASSWORD = 'your_app_password'  # Not your real email password!
 
 
 

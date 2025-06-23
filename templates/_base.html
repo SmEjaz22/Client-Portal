@@ -7,15 +7,19 @@
 </head>
 
 <body>
-    <h1>This is your <u> 'CLIP'</u> </h1>
+    <h1>This is your <u> 'CLIP'</u> {{request.user.username}} </h1>
     {%if request.user.is_authenticated%}
     <form method="post" action="{% url 'account:logout'%}">
         {%csrf_token%}
         <button type="submit">Logout</button>
     </form>
     {%else%}
+    {% if request.path != '/account/login/' %}
     <a href="{% url 'account:login'%}">Login</a>
+    {%else%}
     <a href="{% url 'account:register'%}">Register</a>
+
+    {%endif%}
     {%endif%}
     {% block content %}
 

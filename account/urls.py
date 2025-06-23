@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import path, include, reverse_lazy
 from . import views
 
 app_name='account'
@@ -14,7 +14,9 @@ urlpatterns = [
     path('reject-status/<int:org_id>', views.rejectStatus, name='rejectStatus'),
     path('admin/<str:admin_name>', views.admin, name='admin'),
     path('admin-setup/', views.adminSetup, name='adminSetup'),
+    path('add-clients/', views.addClients, name='addClients'),
 
     # Built-in urls for registration views.
+    path('password_reset/', views.CustomPasswordResetView.as_view(), name='password_reset'),
     path('', include('django.contrib.auth.urls')),
 ]

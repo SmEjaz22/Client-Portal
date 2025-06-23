@@ -33,4 +33,19 @@
     {%endif%}
 </div>
 
+<h3>Register clients:</h3>
+<a href="{%url 'account:addClients'%}">
+    Add clients
+</a>
+<h3>
+    Total Clients:
+</h3>
+<ul>
+    {% for tc in total_clients %}
+    <li>
+        {{tc.email}} - {{tc.firstName}} - {{tc.role}} - {{tc.organization.name}}
+    </li>
+    {% endfor %}
+</ul>
+
 {% endblock content %}

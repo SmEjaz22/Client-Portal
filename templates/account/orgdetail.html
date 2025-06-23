@@ -37,7 +37,7 @@
 <form method="POST" action="{% url 'account:rejectStatus' org.id %}">
     {% csrf_token %}
     <button type="submit">
-        Approve the application.
+        Reject the application.
     </button>
 </form>
 

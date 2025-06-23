@@ -7,9 +7,16 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Q
+from django.urls import reverse_lazy
+from django.contrib.auth.views import PasswordResetView, LogoutView, PasswordChangeView
 
-from .models import Organization 
-from .forms import OrganizationRegistrationForm, LoginForm, AdminSetupForm
+from .models import Organization, Clients 
+from .forms import OrganizationRegistrationForm, LoginForm, AdminSetupForm, ClientRegistrationForm
+
+
+class CustomPasswordResetView(PasswordResetView):
+    success_url=reverse_lazy('account:password_reset_done') # You set success_url on the view that does the redirect, not the one being redirected to.
+
 
 def loginView(request):
     if User.objects.count() < 2:
@@ -28,27 +35,21 @@ def loginView(request):
             
             org_exists=Organization.objects.filter(adminEmail=cd.get('adminEmail')).exists()
             user_exists=User.objects.filter(Q(username=cd.get('adminEmail')) | Q(email=cd.get('adminEmail'))).exists()
-            
-            if not org_exists and not user_exists:
-                return HttpResponse('Organization and/or User Does not exist!')
-            elif user.is_superuser:
-                login(request, user)
-                return redirect('account:admin', user.username) #  Idher masla hai
-            else:
-                org=Organization.objects.get(adminEmail=cd.get('adminEmail'))
-
-                # to use in statusView().
-                request.session['pending_status_email'] = org.adminEmail
-                if user is not None:
+            if user is not None:
+                if not org_exists and not user_exists:
+                    return HttpResponse('Organization and/or User Does not exist!')
+                
+                elif org_exists:
+                    org=Organization.objects.get(adminEmail=cd.get('adminEmail'))
+                    # to use in statusView().
+                    request.session['pending_status_email'] = org.adminEmail
+                    
                     if org.status=='approved':
                         if user.is_active:
                             login(request,user)
                             request.session.pop('pending_status_email', None)
                             # This technique is super handy whenever you want to allow access to something before login, without creating real accounts, or without storing temporary users.  Why it’s secure: A user cannot change their session data from the frontend — it’s stored securely on the server.
-                            if request.user.is_superuser:
-                                return redirect('account:admin', user.username)
-                            else:
-                                return redirect('account:dashboard', org_id=org.id)
+                            return redirect('account:dashboard', org_id=org.id)
                         else:
                             return HttpResponse("Disabled account!")
                     else:
@@ -57,8 +58,12 @@ def loginView(request):
                         else:
                             return HttpResponse('<h1>You are only allowed to access your own status. If you think this is a mistake. Contact support!</h1>')
 
-                else:
-                    return HttpResponse("Invalid Login!")
+                else: # Admin logging here.
+                    login(request, user)
+                    return redirect('account:admin', user.username)
+
+            else:
+                return HttpResponse("Invalid Login!")
     return render(request, 'account/login.html', {'form':form})
 
 
@@ -90,6 +95,7 @@ def statusView(request, org_id):
 def userDashboard(request, org_id):
     user=request.user.username
     org=Organization.objects.get(id=org_id)
+    clients=Clients.objects.filter(organization=org)
     if '@' in org.adminEmail:
         user_fullname=org.adminEmail.split('@',1)[0]
     else:
@@ -102,7 +108,7 @@ def userDashboard(request, org_id):
         user_name=user_fullname
         
     if user==org.adminEmail:
-        return render(request, 'account/userDashboard.html', {'org':org, 'user_name':user_name})    
+        return render(request, 'account/userDashboard.html', {'org':org, 'user_name':user_name,'clients':clients})    
     else:
         return HttpResponse('<h1>You are only allowed to access your own dashboard. If you think this is a mistake. Contact support!</h1>')
     
@@ -168,7 +174,9 @@ def admin(request, admin_name):
     total_approved_org=Organization.objects.filter(status='approved').count()
     rejected_org=Organization.objects.filter(status='rejected')
     
-    return render(request, 'account/admin.html', {'admin_name':admin_name, 'org':org, 'approved_org':approved_org, 'total_orgs':total_orgs, 'total_approved_org':total_approved_org})
+    total_clients=Clients.objects.all()
+    
+    return render(request, 'account/admin.html', {'admin_name':admin_name, 'org':org, 'approved_org':approved_org, 'total_orgs':total_orgs, 'total_approved_org':total_approved_org, 'total_clients':total_clients})
 
 
 def adminSetup(request):
@@ -191,3 +199,31 @@ def adminSetup(request):
     return render(request, 'account/adminSetup.html', {'form':form})
     
     
+
+@login_required
+def addClients(request):
+    user_exists = request.user.is_superuser
+    user=request.user.username
+    org_exist=Organization.objects.filter(adminEmail=user).exists()
+    org=Organization.objects.filter(adminEmail=user).first()
+
+    if user_exists or org_exist:
+        if request.method!='POST':
+            if org_exist:
+                form=ClientRegistrationForm(org=org)
+            else:
+                form=ClientRegistrationForm()
+        else:
+            if org_exist:
+                form=ClientRegistrationForm(request.POST, user=request.user, org=org)
+            else: # admin here
+                form=ClientRegistrationForm(request.POST, user=request.user)
+            if form.is_valid():
+                form.save()
+                if org_exist:
+                    return redirect('account:dashboard',org_id=org.id )
+                else:
+                    return redirect('account:admin', request.user.username)
+    else:
+        return HttpResponse('You are a client. You do not have permission to view this.')
+    return render(request, 'account/addclients.html', {'form':form})
