@@ -39,7 +39,6 @@ LOGIN_URL = 'account:login'
 
 INSTALLED_APPS = [
     'account',
-    'portal',
     
     'django.contrib.admin',
     'django.contrib.auth',

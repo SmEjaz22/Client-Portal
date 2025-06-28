@@ -43,7 +43,9 @@
 <ul>
     {% for tc in total_clients %}
     <li>
-        {{tc.email}} - {{tc.firstName}} - {{tc.role}} - {{tc.organization.name}}
+        <a href="{%url 'account:editClients' tc.email%}">
+            {{tc.email}} - {{tc.firstName}} - {{tc.role}} - {{tc.organization.name}}
+        </a>
     </li>
     {% endfor %}
 </ul>

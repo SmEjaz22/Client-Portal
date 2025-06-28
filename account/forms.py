@@ -17,10 +17,12 @@ class OrganizationRegistrationForm(forms.ModelForm):
         
     def clean_adminEmail(self):
         email = self.cleaned_data.get('adminEmail')
-        if User.objects.filter(email=email).exists():
+        user_qs = User.objects.filter(email=email)
+        if self.instance:
+            user_qs = user_qs.exclude(email=self.instance.adminEmail)
+        
+        if user_qs.exists():
             raise forms.ValidationError("This email is already in use by another user.")
-        if Organization.objects.filter(adminEmail=email).exists():
-            raise forms.ValidationError("This email is already used by another organization.")
         return email
     
     def save(self, commit = True):
@@ -39,12 +41,14 @@ class OrganizationRegistrationForm(forms.ModelForm):
                 # user_fullname=user_firstname+' '+user_lastname
             else:
                 user_firstname=user_fullname
-            user = User.objects.create_user(username=user_firstname, password=password, email=email)
+            user, user_create = User.objects.get_or_create(username=user_firstname, email=email)
+            user.set_password(password)
             print(password)
             instance.user=user
             
         if commit:
             instance.save()
+            user.save()
 
         return instance
     
@@ -78,22 +82,41 @@ class ClientRegistrationForm(forms.ModelForm):
     class Meta:
         model=Clients
         fields='__all__'
+        exclude=['user']
         
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)  # Get user from kwargs
         self.organization = kwargs.pop('org', None)  # Get user from kwargs
         super().__init__(*args, **kwargs)
 
-        if self.organization:
+        if self.user and not self.user.is_superuser:
             self.fields.pop('organization', None)
 
         
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        if User.objects.filter(email=email).exists():
+        # if User.objects.filter(email=email).exists():
+        #     raise forms.ValidationError("This email is already in use by another user.")
+        # if Clients.objects.filter(email=email).exists():
+        #     raise forms.ValidationError("This email is already used by another client and/or organization.")
+        
+        
+        # Check for duplicate Clients (excluding current instance if editing)
+        # client_qs = Clients.objects.filter(email=email)
+        # if self.instance:
+        #     client_qs = client_qs.exclude(pk=self.instance.pk)
+        # if client_qs.exists():
+        #     raise forms.ValidationError("This email is already used by another client and/or organization.")
+        
+        
+        user_qs = User.objects.filter(email=email)
+        if self.instance:
+            user_qs = user_qs.exclude(email=self.instance.email)
+        
+        if user_qs.exists():
             raise forms.ValidationError("This email is already in use by another user.")
-        if Clients.objects.filter(email=email).exists():
-            raise forms.ValidationError("This email is already used by another client and/or organization.")
+        
+        
         return email
 
     def save(self, commit = ...):
@@ -103,14 +126,63 @@ class ClientRegistrationForm(forms.ModelForm):
         email=self.cleaned_data.get('email')
         password=self.cleaned_data.get('password')
 
-        User.objects.create_user(username=firstName, email=email, password=password)
-        print(password)
+        user, user_create = User.objects.get_or_create(username=firstName, email=email)
+        if password:
+            print(password)
+            user.set_password(password)
+            
         if self.user.is_superuser:
             instance.organization=self.cleaned_data.get('organization')
         else:
             instance.organization=self.organization
         
+        instance.user=user
+
         if commit:
             instance.save()
 
         return instance
+
+
+
+class ChatForm(forms.Form):
+    To=forms.ModelMultipleChoiceField(queryset=Organization.objects.none(),
+                                      widget=forms.SelectMultiple(attrs={'size':5}),
+                                      label='Send To',
+                                      required=True)
+    
+    Heading = forms.CharField(max_length=30, required=True) # for single line input
+    Description =forms.CharField(widget=forms.Textarea(attrs={
+        'cols':40,
+        'rows':5
+    }),required=True)
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # if self.user and Clients.objects.filter(email=self.user.email).first() is not None:
+        #     self.fields['To'].queryset = Clients.objects.filter(email=self.user)
+        
+        # As admin
+        org = Organization.objects.filter(adminEmail=self.user.email).first()
+
+        # Or as a client
+        if not org:
+            client = Clients.objects.filter(user=self.user).first()
+            if client:
+                org = client.organization
+
+        if org:
+            client_users = User.objects.filter(clients__organization=org)
+            try:
+                admin_user = User.objects.get(email=org.adminEmail)
+            except User.DoesNotExist:
+                admin_user = None
+
+            # Combine admin and clients
+            combined_users = client_users
+            if admin_user:
+                combined_users = combined_users | User.objects.filter(pk=admin_user.pk)
+
+            self.fields['To'].queryset = combined_users.distinct()

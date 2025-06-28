@@ -42,13 +42,24 @@ class Organization(models.Model):
         return self.name
 
 
+class Role(models.Model):
+    role=models.CharField(max_length=30, unique=True)
+    
+    def __str__(self):
+        return self.role
+    
+
 class Clients(models.Model):
-    email=models.EmailField()
+    email=models.EmailField(unique=True)
     firstName=models.CharField(max_length=30, blank=True, null=True)
     lastName=models.CharField(max_length=30, blank=True, null=True)
-    ROLE_CHOICES=[
-        ('teacher','Teacher'),
-        ('student','Student')
-    ]
-    role=models.CharField(choices=ROLE_CHOICES, blank=True, null=True)
+    # ROLE_CHOICES=[
+    #     ('teacher','Teacher'),
+    #     ('student','Student')
+    # ]
+    role=models.ForeignKey(Role, on_delete=models.CASCADE)
     organization=models.ForeignKey(Organization, on_delete=models.CASCADE)
+    user=models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    
+    def __str__(self):
+        return self.email

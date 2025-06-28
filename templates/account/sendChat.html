@@ -1,0 +1,15 @@
+{% extends "_base.html" %}
+
+{% block content %}
+
+<h1>
+    Message:
+</h1>
+<form method="post">
+    {{form.as_p}}
+    {%csrf_token%}
+    <button type="submit">Send it</button>
+</form>
+
+
+{% endblock content %}

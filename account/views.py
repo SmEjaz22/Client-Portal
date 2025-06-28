@@ -11,7 +11,7 @@ from django.urls import reverse_lazy
 from django.contrib.auth.views import PasswordResetView, LogoutView, PasswordChangeView
 
 from .models import Organization, Clients 
-from .forms import OrganizationRegistrationForm, LoginForm, AdminSetupForm, ClientRegistrationForm
+from .forms import OrganizationRegistrationForm, LoginForm, AdminSetupForm, ClientRegistrationForm, ChatForm
 
 
 class CustomPasswordResetView(PasswordResetView):
@@ -35,6 +35,7 @@ def loginView(request):
             
             org_exists=Organization.objects.filter(adminEmail=cd.get('adminEmail')).exists()
             user_exists=User.objects.filter(Q(username=cd.get('adminEmail')) | Q(email=cd.get('adminEmail'))).exists()
+            client_exists=Clients.objects.filter(email=cd.get('adminEmail')).exists()
             if user is not None:
                 if not org_exists and not user_exists:
                     return HttpResponse('Organization and/or User Does not exist!')
@@ -53,11 +54,16 @@ def loginView(request):
                         else:
                             return HttpResponse("Disabled account!")
                     else:
-                        if user.username == org.adminEmail:
+                        if user.username == org.adminEmail or user.email == org.adminEmail:
+                            
                             return redirect('account:status', org_id=org.id)
                         else:
                             return HttpResponse('<h1>You are only allowed to access your own status. If you think this is a mistake. Contact support!</h1>')
-
+                
+                elif client_exists:
+                    login(request, user)
+                    return HttpResponse('Your Client Dashboard')
+                    
                 else: # Admin logging here.
                     login(request, user)
                     return redirect('account:admin', user.username)
@@ -93,8 +99,12 @@ def statusView(request, org_id):
 
 @login_required
 def userDashboard(request, org_id):
-    user=request.user.username
-    org=Organization.objects.get(id=org_id)
+    user=request.user.email
+    try:
+        org=Organization.objects.get(id=org_id)
+    except Organization.DoesNotExist:
+        return HttpResponse('<h1>You are only allowed to access your own dashboard. If you think this is a mistake. Contact support!</h1>')
+    
     clients=Clients.objects.filter(organization=org)
     if '@' in org.adminEmail:
         user_fullname=org.adminEmail.split('@',1)[0]
@@ -168,13 +178,16 @@ def rejectStatus(request, org_id):
     
 @login_required
 def admin(request, admin_name):
-    org=Organization.objects.all().exclude(name=admin_name)
-    total_orgs=org.count()
-    approved_org=Organization.objects.filter(status='approved')
-    total_approved_org=Organization.objects.filter(status='approved').count()
-    rejected_org=Organization.objects.filter(status='rejected')
-    
-    total_clients=Clients.objects.all()
+    if request.user.is_superuser:
+        org=Organization.objects.all().exclude(name=admin_name)
+        total_orgs=org.count()
+        approved_org=Organization.objects.filter(status='approved')
+        total_approved_org=Organization.objects.filter(status='approved').count()
+        rejected_org=Organization.objects.filter(status='rejected')
+        
+        total_clients=Clients.objects.all()
+    else:
+        return HttpResponse('You are not an admin.')
     
     return render(request, 'account/admin.html', {'admin_name':admin_name, 'org':org, 'approved_org':approved_org, 'total_orgs':total_orgs, 'total_approved_org':total_approved_org, 'total_clients':total_clients})
 
@@ -202,17 +215,17 @@ def adminSetup(request):
 
 @login_required
 def addClients(request):
-    user_exists = request.user.is_superuser
-    user=request.user.username
+    user_admin = request.user.is_superuser
+    user=request.user.email
     org_exist=Organization.objects.filter(adminEmail=user).exists()
     org=Organization.objects.filter(adminEmail=user).first()
 
-    if user_exists or org_exist:
+    if user_admin or org_exist:
         if request.method!='POST':
             if org_exist:
-                form=ClientRegistrationForm(org=org)
+                form=ClientRegistrationForm(org=org, user=request.user)
             else:
-                form=ClientRegistrationForm()
+                form=ClientRegistrationForm(user=request.user)
         else:
             if org_exist:
                 form=ClientRegistrationForm(request.POST, user=request.user, org=org)
@@ -221,9 +234,55 @@ def addClients(request):
             if form.is_valid():
                 form.save()
                 if org_exist:
-                    return redirect('account:dashboard',org_id=org.id )
+                    return redirect('account:dashboard', org.id )
                 else:
                     return redirect('account:admin', request.user.username)
     else:
         return HttpResponse('You are a client. You do not have permission to view this.')
     return render(request, 'account/addclients.html', {'form':form})
+
+
+@login_required
+def editClients(request, cli_email):
+    user_admin = request.user.is_superuser
+    org=None
+    
+    try:
+        cli=Clients.objects.get(email=cli_email)
+    except Clients.DoesNotExist:
+        return HttpResponse('This client has been deleted and no longer exists.')
+
+    if not user_admin:
+        try:
+            org = Organization.objects.get(user=request.user)
+            if cli.organization.adminEmail != org.adminEmail:
+                return HttpResponse("You do not have permission to edit this clients")
+        except Organization.DoesNotExist:
+            return HttpResponse("You do not have permission to edit clients.")
+        
+    
+    if request.method != 'POST':
+        form=ClientRegistrationForm(instance=cli, user=request.user)
+    else:
+        form=ClientRegistrationForm(request.POST, instance=cli, user=request.user, org=org)
+        if form.is_valid():
+            form.save()
+            if user_admin:
+                return redirect('account:admin', request.user.username)
+            else:
+                return redirect('account:dashboard', org.id)
+    return render(request, 'account/editclients.html', {'form':form, 'org': org, 'cli':cli })
+
+
+
+@login_required
+def sendChat(request):
+    if request.method == 'POST':
+        form = ChatForm(request.POST, user=request.user)
+        if form.is_valid():
+            # handle the form data here
+            pass
+    else:
+        form = ChatForm(user=request.user)
+
+    return render(request, 'account/sendChat.html', {'form': form, })
