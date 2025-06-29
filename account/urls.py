@@ -19,6 +19,7 @@ urlpatterns = [
     path('add-clients/', views.addClients, name='addClients'),
     path('edit-clients/<str:cli_email>', views.editClients, name='editClients'),
     path('send-chat/', views.sendChat, name='sendChat'),
+    path('dashboard/<str:cli_email>', views.clientDashboard, name='clientDashboard'),
 
     # Built-in urls for registration views.
     path('password_reset/', views.CustomPasswordResetView.as_view(), name='password_reset'),

@@ -23,7 +23,7 @@ Welcome to {{org.name}}
     {% for tc in clients %}
     <li>
     <a href={%url 'account:editClients' tc.email%}>
-            {{tc.email}} - {{tc.firstName}} - {{tc.role}} - {{tc.organization.name}}
+            {{tc.email}} - {{tc.firstName}} {{tc.lastName}} - {{tc.role}} - {{tc.organization.name}}
     </a>
     </li>
     {% endfor %}
@@ -33,4 +33,25 @@ Welcome to {{org.name}}
     No clients found for your organization.
 </p>
 {% endif %}
+
+<h2>
+    <a href="{%url 'account:sendChat'%}">
+        Send Message➡
+    </a>
+</h2>
+
+<h2>
+    Your Inbox:
+</h2>
+{% if messages %}
+{% for mesg in messages %}
+    {% ifchanged mesg.sender %}
+        <strong>From: {{ mesg.sender.username }}</strong><br>
+    {% endifchanged %}
+    - {{ mesg.heading }}: {{ mesg.description }}<br>
+{% endfor %}
+{% else %}
+No messages to show.
+{% endif %}
+
 {% endblock content %}

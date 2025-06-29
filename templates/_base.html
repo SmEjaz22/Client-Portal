@@ -15,9 +15,9 @@
     </form>
     {%else%}
     {% if request.path != '/account/login/' %}
-    <a href="{% url 'account:login'%}">Login</a>
+    <a href="{% url 'account:login'%}">Go To Login</a>
     {%else%}
-    <a href="{% url 'account:register'%}">Register</a>
+    <a href="{% url 'account:register'%}">Go To Register</a>
 
     {%endif%}
     {%endif%}

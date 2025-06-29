@@ -1,0 +1,35 @@
+{% extends "_base.html" %}
+
+{% block content %}
+
+<h1>
+Welcome to {{org.name}}
+</h1>
+<div>
+<h2>
+    {{ user.username|capfirst }} this is your dashboard, where you will find your organization other members. You can communicate with them, share files and stay in the loop via email notification.  
+</h2>
+</div>
+
+<h2>
+    <a href="{%url 'account:sendChat'%}">
+        Send Message➡
+    </a>
+</h2>
+
+<h2>
+    Your Inbox:
+</h2>
+{% if grouped_messages %}
+    {% for sender, msgs in grouped_messages %}
+        <strong>From: {{ sender.username }}</strong><br>
+        {% for mesg in msgs %}
+            - {{ mesg.heading }}: {{ mesg.description }}<br>
+        {% endfor %}
+        <br>
+    {% endfor %}
+{% else %}
+    No messages yet!
+{% endif %}
+
+{% endblock content %}

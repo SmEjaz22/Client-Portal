@@ -10,7 +10,7 @@ from django.db.models import Q
 from django.urls import reverse_lazy
 from django.contrib.auth.views import PasswordResetView, LogoutView, PasswordChangeView
 
-from .models import Organization, Clients 
+from .models import Organization, Clients, ChatHistory 
 from .forms import OrganizationRegistrationForm, LoginForm, AdminSetupForm, ClientRegistrationForm, ChatForm
 
 
@@ -34,8 +34,8 @@ def loginView(request):
                                    password=cd.get('password'))
             
             org_exists=Organization.objects.filter(adminEmail=cd.get('adminEmail')).exists()
+            client_exists=Clients.objects.filter(Q(email=cd.get('adminEmail')) | Q(firstName=cd.get('adminEmail'))).exists()
             user_exists=User.objects.filter(Q(username=cd.get('adminEmail')) | Q(email=cd.get('adminEmail'))).exists()
-            client_exists=Clients.objects.filter(email=cd.get('adminEmail')).exists()
             if user is not None:
                 if not org_exists and not user_exists:
                     return HttpResponse('Organization and/or User Does not exist!')
@@ -62,7 +62,7 @@ def loginView(request):
                 
                 elif client_exists:
                     login(request, user)
-                    return HttpResponse('Your Client Dashboard')
+                    return redirect('account:clientDashboard', user.email)
                     
                 else: # Admin logging here.
                     login(request, user)
@@ -99,6 +99,9 @@ def statusView(request, org_id):
 
 @login_required
 def userDashboard(request, org_id):
+    user=request.user
+    messages = ChatHistory.objects.filter(recipients=user).order_by('-timestamp')
+    
     user=request.user.email
     try:
         org=Organization.objects.get(id=org_id)
@@ -118,7 +121,7 @@ def userDashboard(request, org_id):
         user_name=user_fullname
         
     if user==org.adminEmail:
-        return render(request, 'account/userDashboard.html', {'org':org, 'user_name':user_name,'clients':clients})    
+        return render(request, 'account/userDashboard.html', {'org':org, 'user_name':user_name,'clients':clients, 'messages':messages})    
     else:
         return HttpResponse('<h1>You are only allowed to access your own dashboard. If you think this is a mistake. Contact support!</h1>')
     
@@ -274,15 +277,48 @@ def editClients(request, cli_email):
     return render(request, 'account/editclients.html', {'form':form, 'org': org, 'cli':cli })
 
 
-
+from django.contrib import messages
 @login_required
 def sendChat(request):
+    previous_url = request.META.get('HTTP_REFERER')
     if request.method == 'POST':
         form = ChatForm(request.POST, user=request.user)
         if form.is_valid():
-            # handle the form data here
-            pass
+
+            heading = form.cleaned_data['Heading']
+            description = form.cleaned_data['Description']
+            recipients = form.cleaned_data['To']  # Could be multiple users
+
+            chat = ChatHistory.objects.create(
+                sender=request.user,
+                heading=heading,
+                description=description
+            )
+            chat.recipients.set(recipients)  # ManyToMany assignment
+            chat.save()
+            messages.success(request,'Message sent successfully.')
+
     else:
         form = ChatForm(user=request.user)
 
-    return render(request, 'account/sendChat.html', {'form': form, })
+    return render(request, 'account/sendChat.html', {'form': form, 'back_url': previous_url})
+
+
+from collections import defaultdict
+@login_required
+def clientDashboard(request, cli_email):
+    user=request.user
+    client=Clients.objects.filter(email=cli_email).first()
+    messages = ChatHistory.objects.filter(recipients=user).order_by('timestamp')
+
+    grouped = defaultdict(list) # automatically add an empty list under a key if it doesn't exist yet.
+    for msg in messages:
+        grouped[msg.sender].append(msg)
+        # grouped['Mumtaz'].append('Hi') 
+        # grouped = {'Mumtaz':['Hi','Hello', 'etc']}
+    if client:
+        org=client.organization
+    if client.email != user.email:
+        return HttpResponse('Not authorised to view another client profile')
+    else:
+        return render(request, 'account/clientDashboard.html', {'client':client, 'org':org, 'user':user, 'grouped_messages': grouped.items()})

@@ -73,7 +73,17 @@ class AdminSetupForm(forms.Form):
         
         return retypePasswprd
     
-    
+
+
+from django.utils.text import slugify
+import uuid
+
+def generate_unique_username(base_name):
+    base = slugify(base_name) or "user"
+    while True:
+        username = f"{base}_{uuid.uuid4().hex[:6]}"
+        if not User.objects.filter(username=username).exists():
+            return username    
 
     
 class ClientRegistrationForm(forms.ModelForm):
@@ -126,7 +136,9 @@ class ClientRegistrationForm(forms.ModelForm):
         email=self.cleaned_data.get('email')
         password=self.cleaned_data.get('password')
 
-        user, user_create = User.objects.get_or_create(username=firstName, email=email)
+        username = generate_unique_username(firstName)
+
+        user, user_create = User.objects.get_or_create(username=username, email=email)
         if password:
             print(password)
             user.set_password(password)
@@ -140,6 +152,7 @@ class ClientRegistrationForm(forms.ModelForm):
 
         if commit:
             instance.save()
+            user.save()
 
         return instance
 
@@ -185,4 +198,5 @@ class ChatForm(forms.Form):
             if admin_user:
                 combined_users = combined_users | User.objects.filter(pk=admin_user.pk)
 
-            self.fields['To'].queryset = combined_users.distinct()
+            self.fields['To'].queryset = combined_users.distinct().exclude(pk=self.user.pk)
+            self.fields['To'].label_from_instance = lambda user: f'{user.username} - ({user.email})'

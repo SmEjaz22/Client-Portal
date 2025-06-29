@@ -63,3 +63,15 @@ class Clients(models.Model):
     
     def __str__(self):
         return self.email
+    
+    
+class ChatHistory(models.Model):
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    recipients = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='received_messages')
+    heading = models.CharField(max_length=100)
+    description = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)  # Optional: for tracking reads
+
+    def __str__(self):
+        return f"{self.sender} -> {', '.join([r.username for r in self.recipients.all()])}"
